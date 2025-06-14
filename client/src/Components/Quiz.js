@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { jwtDecode } from "jwt-decode";
-import * as bootstrap from 'bootstrap';
 
 export default function QuizQuestionForm() {
   const [IsLoggedIn, setIsLoggedIn] = useState(false);
@@ -154,8 +153,7 @@ export default function QuizQuestionForm() {
       setTotal(quizQuestions.length);
 
       // ✅ Show Bootstrap modal manually
-      const thankYouModal = new bootstrap.Modal(document.getElementById('thankYouModal'));
-      thankYouModal.show();
+      document.getElementById('openThankYouModalBtn').click();
 
       // ✅ Clear states
       setQuizQuestions([]);
@@ -225,7 +223,7 @@ export default function QuizQuestionForm() {
 
     return () => clearInterval(countdown);
     // eslint-disable-next-line 
-  }, [isSubmitted]);
+  }, [timer]);
 
   return (
     <div className="Quiz">
@@ -601,6 +599,15 @@ export default function QuizQuestionForm() {
           </div>
         </div>
       )}
+
+      <button
+        type="button"
+        id="openThankYouModalBtn"
+        data-bs-toggle="modal"
+        data-bs-target="#thankYouModal"
+        style={{ display: 'none' }}
+      ></button>
+
 
       <div className="modal fade" id="thankYouModal" tabIndex="-1">
         <div className="modal-dialog modal-dialog-centered">
