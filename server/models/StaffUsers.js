@@ -8,6 +8,14 @@ const StaffUserSchema = new mongoose.Schema({
     Staffpassword: {
         type: String,
         required: true,
+    },
+    StaffEmail: {
+        type: String,
+        required: true,
+    },
+    StaffPhone: {
+        type: String,
+        required: true,
     }
 });
 
