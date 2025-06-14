@@ -311,6 +311,13 @@ export default function QuizQuestionForm() {
 
   const [detailSubmission, setDetailSubmission] = React.useState(null);
 
+  if (!IsLoggedIn && !IsStaffLoggedIn) {
+  return (
+    <div className="alert alert-warning" style={{ textAlign: 'center', marginTop: '20px' }}>
+      Please login to continue for a quiz.
+    </div>
+  );
+}
   return (
     <div className="Quiz">
 
