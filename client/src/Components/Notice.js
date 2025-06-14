@@ -30,17 +30,17 @@ export default function Notice() {
     }
   }, [])
 
-  const [IsStaffLoggedIn, setIsStaffLoggedIn] = useState(false);
+  // const [IsStaffLoggedIn, setIsStaffLoggedIn] = useState(false);
 
-  useEffect(() => {
-    const token = localStorage.getItem('Stafftoken');
-    if (token) {
-      setIsStaffLoggedIn(true)
-    }
-    else {
-      setIsStaffLoggedIn(false)
-    }
-  }, [])
+  // useEffect(() => {
+  //   const token = localStorage.getItem('Stafftoken');
+  //   if (token) {
+  //     setIsStaffLoggedIn(true)
+  //   }
+  //   else {
+  //     setIsStaffLoggedIn(false)
+  //   }
+  // }, [])
 
   const [Notice, setNotice] = useState({
     Title: '',

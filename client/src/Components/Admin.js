@@ -19,7 +19,6 @@ export default function Admin() {
 
   // eslint-disable-next-line
   const [IsStaffLoggedIn, setIsStaffLoggedIn] = useState(false);
-
   useEffect(() => {
     const token = localStorage.getItem('Stafftoken');
     if (token) {
@@ -42,7 +41,6 @@ export default function Admin() {
       const updatedFeedback = { ...Feedback, TimeAdded: new Date() };
       await axios.post("https://ccc-bsp-server.vercel.app/AddNewFeedback", { ...updatedFeedback })
         .then(result => {
-          console.log(result)
           alert('Thank You For Your Valuable Time & Feedback !')
           window.location.reload();
         })
@@ -81,7 +79,6 @@ export default function Admin() {
       await axios.post('https://ccc-bsp-server.vercel.app/Register', { username, password })
         .then(result => {
           alert('User Registration Successful')
-          console.log(result)
         })
         .catch(error => console.log(error))
     } catch (error) {
@@ -125,16 +122,17 @@ export default function Admin() {
     }
   }
 
-  const [Staffusername, setStaffUsername] = useState("");
-  const [Staffpassword, setStaffPassword] = useState("");
+  const [Staffusername, setStaffUsername] = useState('');
+  const [Staffpassword, setStaffPassword] = useState('');
+  const [StaffEmail, setStaffEmail] = useState('');
+  const [StaffPhone, setStaffPhone] = useState('');
 
   const AddStaffUser = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('https://ccc-bsp-server.vercel.app/StaffRegister', { Staffusername, Staffpassword })
+      await axios.post('https://ccc-bsp-server.vercel.app/StaffRegister', { Staffusername, Staffpassword, StaffEmail, StaffPhone })
         .then(result => {
           alert('Staff Registration Successful')
-          console.log(result)
         })
         .catch(error => console.log(error))
     } catch (error) {
@@ -165,40 +163,35 @@ export default function Admin() {
     <div className='Admin'>
       <div className='AddNew'>
 
-        {
-  /* 
-  IsStaffLoggedIn ?
-    <button className='btn btn-danger' onClick={StaffLogout}>Staff Logout</button>
-    :
-    <button type="button" className="btn btn-info" data-bs-toggle="modal" data-bs-target="#StaffLoginModal">
-      Staff Login
-    </button>
-  */
-}
-
 
 
         {
           IsLoggedIn ?
-            <button type="button" className="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#AddStaffUserModal">
-              Add Staff User
+            <button type="button" className="btn btn-sm btn-Link btn-success" data-bs-toggle="modal" data-bs-target="#RegisterModal">
+              Register New Admin
             </button>
             :
             null
         }
+
+        <button type="button" className="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#AddStaffUserModal">
+          Register New User
+        </button>
+
         {
-          IsLoggedIn ?
-            <button type="button" className="btn btn-Link btn-outline-success" data-bs-toggle="modal" data-bs-target="#RegisterModal">
-              New User
+          IsStaffLoggedIn ?
+            <button className='btn btn-sm btn-danger' onClick={StaffLogout}>Staff Logout</button>
+            :
+            <button type="button" className="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#StaffLoginModal">
+              User Login
             </button>
-            :
-            null
         }
+
         {
           IsLoggedIn ?
-            <button className='btn btn-Link btn-danger' onClick={Logout}>LogOut</button>
+            <button className='btn btn-sm btn-Link btn-danger' onClick={Logout}>LogOut</button>
             :
-            <button className='btn btn-Link btn-danger' data-bs-toggle="modal" data-bs-target="#LoginModal">Admin Login</button>
+            <button className='btn btn-sm btn-Link btn-danger' data-bs-toggle="modal" data-bs-target="#LoginModal">Admin Login</button>
         }
       </div>
       <div className='AdminProfile'>
@@ -268,11 +261,11 @@ export default function Admin() {
             {
               AllFeedback && AllFeedback.slice().reverse().map((Element, idx) => {
                 const date = new Date(Element.TimeAdded);
-      
-      const isValidDate = !isNaN(date.getTime());
-      
-      const formattedDate = isValidDate ? date.toLocaleDateString('en-GB') : Element.TimeAdded;
-      const formattedTime = isValidDate ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '';
+
+                const isValidDate = !isNaN(date.getTime());
+
+                const formattedDate = isValidDate ? date.toLocaleDateString('en-GB') : Element.TimeAdded;
+                const formattedTime = isValidDate ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '';
 
                 return (
                   <div key={idx} className="card card-header">
@@ -288,8 +281,6 @@ export default function Admin() {
           </div>
         </div>
       </div>
-
-
 
 
       {/* CheckAdmin */}
@@ -365,18 +356,49 @@ export default function Admin() {
                 <h1 className="modal-title fs-5" id="AddStaffUserModalLabel">Add New Staff</h1>
                 <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
-              <div className="modal-body">
-                <input value={Staffusername} onChange={(event) => setStaffUsername(event.target.value)} placeholder='Username' type='text' />
-                <input value={Staffpassword} onChange={(event) => setStaffPassword(event.target.value)} placeholder='Password' type='password' />
+              <div className="modal-body d-flex flex-column gap-2">
+                <input
+                  value={StaffEmail}
+                  onChange={(event) => setStaffEmail(event.target.value)}
+                  placeholder='Email Address'
+                  type='email'
+                  className="form-control"
+                  required
+                />
+                <input
+                  value={Staffusername}
+                  onChange={(event) => setStaffUsername(event.target.value)}
+                  placeholder='Username'
+                  type='text'
+                  className="form-control"
+                  required
+                />
+                <input
+                  value={Staffpassword}
+                  onChange={(event) => setStaffPassword(event.target.value)}
+                  placeholder='Password'
+                  type='password'
+                  className="form-control"
+                  required
+                />
+                <input
+                  value={StaffPhone}
+                  onChange={(event) => setStaffPhone(event.target.value)}
+                  placeholder='Phone Number'
+                  type='tel'
+                  className="form-control"
+                  required
+                />
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" className="btn btn-primary" data-bs-dismiss="modal">Add New Staff</button>
+                <button type="submit" className="btn btn-primary" >Add New Staff</button>
               </div>
             </form>
           </div>
         </div>
       </div>
+
 
     </div>
   )

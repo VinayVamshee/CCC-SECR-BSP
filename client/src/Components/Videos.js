@@ -15,17 +15,17 @@ export default function Videos() {
     }
   }, [])
 
-  const [IsStaffLoggedIn, setIsStaffLoggedIn] = useState(false);
+  // const [IsStaffLoggedIn, setIsStaffLoggedIn] = useState(false);
 
-  useEffect(() => {
-    const token = localStorage.getItem('Stafftoken');
-    if (token) {
-      setIsStaffLoggedIn(true)
-    }
-    else {
-      setIsStaffLoggedIn(false)
-    }
-  }, [])
+  // useEffect(() => {
+  //   const token = localStorage.getItem('Stafftoken');
+  //   if (token) {
+  //     setIsStaffLoggedIn(true)
+  //   }
+  //   else {
+  //     setIsStaffLoggedIn(false)
+  //   }
+  // }, [])
 
   const [Videos, setVideos] = useState({
     Name: '',

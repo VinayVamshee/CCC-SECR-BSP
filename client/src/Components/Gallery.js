@@ -15,17 +15,17 @@ export default function Gallery() {
     }
   }, [])
 
-  const [IsStaffLoggedIn, setIsStaffLoggedIn] = useState(false);
+  // const [IsStaffLoggedIn, setIsStaffLoggedIn] = useState(false);
 
-  useEffect(() => {
-    const token = localStorage.getItem('Stafftoken');
-    if (token) {
-      setIsStaffLoggedIn(true)
-    }
-    else {
-      setIsStaffLoggedIn(false)
-    }
-  }, [])
+  // useEffect(() => {
+  //   const token = localStorage.getItem('Stafftoken');
+  //   if (token) {
+  //     setIsStaffLoggedIn(true)
+  //   }
+  //   else {
+  //     setIsStaffLoggedIn(false)
+  //   }
+  // }, [])
 
   const [Card, setCard] = useState({
     Image: '',

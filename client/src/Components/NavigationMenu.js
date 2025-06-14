@@ -111,7 +111,7 @@ export default function NavigationMenu() {
                         <Link to='/Books' className='btn btn-Link-Toggle'><img src={BooksIcon} alt='...' />Books & Circulars</Link>
                         <Link to='/Videos' className='btn btn-Link-Toggle'><img src='https://cdn-icons-png.flaticon.com/512/4404/4404094.png' alt='...' />Technical & Safety Videos</Link>
                         <Link to='/Gallery' className='btn btn-Link-Toggle'><img src={GalleryIcon} alt='...' />Gallery</Link>
-
+                        <Link to='/Quiz' className='btn btn-Link-Toggle'><img src='https://cdn-icons-png.flaticon.com/512/7128/7128236.png' alt='...' />Quiz</Link>
                         <div className="dropend">
                             <button className="btn btn-Link-Toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                 <img src='https://static-00.iconduck.com/assets.00/other-icon-1024x1024-vi0erzei.png' alt='...' />Other
@@ -159,6 +159,7 @@ export default function NavigationMenu() {
             <Link to='/Books' className='btn btn-Link'><img src={BooksIcon} alt='...' />Books & Circulars</Link>
             <Link to='/Videos' className='btn btn-Link'><img src='https://cdn-icons-png.flaticon.com/512/4404/4404094.png' alt='...' />Technical & Safety Videos</Link>
             <Link to='/Gallery' className='btn btn-Link'><img src={GalleryIcon} alt='...' />Gallery</Link>
+            <Link to='/Quiz' className='btn btn-Link'><img src='https://cdn-icons-png.flaticon.com/512/7128/7128236.png' alt='...' />Quiz</Link>
 
             <div className="dropdown">
                 <button className="btn btn-Link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
@@ -197,7 +198,7 @@ export default function NavigationMenu() {
 
             <button className='btn btn-Link' onClick={ChangeTheme}><img src={ThemeIcon} alt='...' />Theme</button>
             <Link to='/Admin' className='btn btn-Link btn-warning'><img src='https://cdn-icons-png.flaticon.com/512/560/560199.png' alt='...' />Login</Link>
-            
+
 
             <div className="modal fade" id="AddNewOtherModal" tabIndex="-1" aria-labelledby="AddNewOtherModalLabel" aria-hidden="true">
                 <div className="modal-dialog AddNew">

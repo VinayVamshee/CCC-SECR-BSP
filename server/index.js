@@ -17,6 +17,8 @@ const OtherDropDownSchema = require('./models/OtherDropDown')
 const FeedbackSchema = require('./models/Feedback')
 const StaffUserSchema = require('./models/StaffUsers')
 const NoticeCategorySchema = require('./models/NoticeCategory')
+const quizQuestionSchema = require('./models/QuizQuestion')
+const quizSubmissionSchema = require('./models/QuizSubmission')
 
 
 const app = express();
@@ -46,28 +48,28 @@ app.post("/save-fcm-token", async (req, res) => {
 const sendNotification = async (userId, noticeTitle, noticeDescription) => {
     const tokens = await FcmToken.find({ userId });
     const tokenList = tokens.map(t => t.token);
-  
-    if (tokenList.length === 0) return console.log("No devices found.");
-  
-    const message = {
-      notification: {
-        title: noticeTitle,
-        body: noticeDescription,
-        // click_action: "http://localhost:3000/Notice"
-      },
-      tokens: tokenList
-    };
-  
-    await admin.messaging().sendEachForMulticast(message)
-  .then(response => console.log("Notifications sent:", response))
-  .catch(error => {
-      console.error("Error sending notification:", error.message);
-      if (error.details) {
-          console.error("Error details:", error.details);
-      }
-  });
 
-  };
+    if (tokenList.length === 0) return console.log("No devices found.");
+
+    const message = {
+        notification: {
+            title: noticeTitle,
+            body: noticeDescription,
+            // click_action: "http://localhost:3000/Notice"
+        },
+        tokens: tokenList
+    };
+
+    await admin.messaging().sendEachForMulticast(message)
+        .then(response => console.log("Notifications sent:", response))
+        .catch(error => {
+            console.error("Error sending notification:", error.message);
+            if (error.details) {
+                console.error("Error details:", error.details);
+            }
+        });
+
+};
 
 
 
@@ -165,22 +167,34 @@ app.post('/StaffRegister', (req, res) => {
 
 app.post('/StaffLogin', (req, res) => {
     const { Staffusername, Staffpassword } = req.body;
+
     StaffUserSchema.findOne({ Staffusername: Staffusername })
         .then(user => {
             if (user) {
                 if (user.Staffpassword === Staffpassword) {
+                    // Include _id in the token payload
+                    const token = jwt.sign(
+                        { Staffusername: user.Staffusername, id: user._id },
+                        'secret_key'
+                    );
 
-                    const token = jwt.sign({ Staffusername: user.Staffusername }, 'secret_key');
-                    res.json({ token: token, message: 'Login Successful' })
-                }
-                else {
-                    res.json('Please Check the Password')
+                    res.json({
+                        token: token,
+                        id: user._id,
+                        message: 'Login Successful'
+                    });
+                } else {
+                    res.json('Please Check the Password');
                 }
             } else {
-                res.json('Not Existing')
+                res.json('Not Existing');
             }
         })
-})
+        .catch(err => {
+            console.error(err);
+            res.status(500).json('Server error');
+        });
+});
 
 
 app.post("/AddNewBook", (req, res) => {
@@ -365,9 +379,158 @@ app.delete('/DeleteFeedback/:id', (req, res) => {
         .catch(error => res.json(error))
 })
 
+app.post("/AddNewQuizQuestion", (req, res) => {
+    quizQuestionSchema.create(req.body)
+        .then(result => res.json(result))
+        .catch(error => res.json(error));
+});
 
+app.get("/GetQuizQuestions", (req, res) => {
+    quizQuestionSchema.find({})
+        .then(result => res.json(result))
+        .catch(error => res.json(error));
+});
+app.put("/UpdateQuizQuestion/:id", (req, res) => {
+    const id = req.params.id;
+    quizQuestionSchema.findByIdAndUpdate(id, req.body, { new: true })
+        .then(result => res.json(result))
+        .catch(error => res.json(error));
+});
+app.delete("/DeleteQuizQuestion/:id", (req, res) => {
+    const id = req.params.id;
+    quizQuestionSchema.findByIdAndDelete(id)
+        .then(result => res.json(result))
+        .catch(error => res.json(error));
+});
 
+function shuffle(array) {
+    return array.sort(() => Math.random() - 0.5);
+}
 
+app.post("/StartQuiz", async (req, res) => {
+  const { category, staffId } = req.body;
+
+  try {
+    let questions = await quizQuestionSchema.find({ category });
+
+    if (!questions || questions.length === 0) {
+      return res.status(404).json({ message: "No questions available" });
+    }
+
+    questions = shuffle(questions).slice(0, 20).map(q => ({
+      _id: q._id,
+      question: q.question,
+      options: shuffle([...q.options])
+    }));
+
+    const startTime = Date.now();                // current time
+    const visibleDuration = 20 * 60 * 1000;      // 20 mins for frontend
+    const bufferDuration = 2 * 60 * 1000;        // 2 mins buffer
+    const jwtDuration = visibleDuration + bufferDuration; // 22 mins total
+
+    const quizToken = jwt.sign({
+      staffId,
+      category,
+      questions,
+      startTime
+    }, 'quiz_secret_key', { expiresIn: Math.floor(jwtDuration / 1000) }); // in seconds
+
+    const endTime = startTime + visibleDuration; // only send 20 mins endTime
+
+    return res.json({
+      token: quizToken,
+      questions,
+      startTime,
+      endTime // frontend will use this for countdown
+    });
+
+  } catch (error) {
+    console.error("Error starting quiz:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/SubmitQuiz", async (req, res) => {
+  const { staffId, token, responses } = req.body;
+
+  try {
+    const decoded = jwt.verify(token, "quiz_secret_key");
+    const { startTime, category } = decoded;
+
+    // Check if already submitted (optional)
+    const alreadySubmitted = await quizSubmissionSchema.findOne({ staffId, category, startTime });
+    if (alreadySubmitted) {
+      return res.status(400).json({ message: "Quiz already submitted" });
+    }
+
+    // Calculate score
+    let correctCount = 0;
+    const formattedResponses = [];
+
+    for (let r of responses) {
+      const question = await quizQuestionSchema.findById(r.questionId);
+      const correct = question?.answer || null;
+      const isCorrect = r.selected === correct;
+
+      if (isCorrect) correctCount++;
+
+      formattedResponses.push({
+        questionId: r.questionId,
+        question: r.question,
+        selected: r.selected,
+        correctAnswer: correct,
+        isCorrect
+      });
+    }
+
+    const submission = new quizSubmissionSchema({
+      staffId,
+      category,
+      startTime,
+      endTime: Date.now(),
+      totalQuestions: responses.length,
+      correctAnswers: correctCount,
+      responses: formattedResponses
+    });
+
+    await submission.save();
+
+    return res.json({ message: "Quiz submitted successfully", correctCount });
+
+  } catch (err) {
+    console.error("SubmitQuiz error:", err);
+    return res.status(401).json({ message: "Invalid or expired quiz token" });
+  }
+});
+
+app.get("/GetAllQuizSubmissions", async (req, res) => {
+  try {
+    const submissions = await quizSubmissionSchema.find({});
+
+    // For each submission, find corresponding staff user info
+    const results = await Promise.all(submissions.map(async (sub) => {
+      const staff = await StaffUserSchema.findById(sub.staffId);
+      return {
+        _id: sub._id,
+        staffId: sub.staffId,
+        staffName: staff ? staff.Staffusername : "Unknown",
+        phone: staff ? staff.StaffPhone : "N/A",
+        category: sub.category,
+        startTime: sub.startTime,
+        endTime: sub.endTime,
+        totalQuestions: sub.totalQuestions,
+        correctAnswers: sub.correctAnswers,
+        responses: sub.responses
+      };
+    }));
+
+    res.json(results);
+
+  } catch (err) {
+    console.error("GetAllQuizSubmissions error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 
 
