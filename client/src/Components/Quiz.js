@@ -225,9 +225,94 @@ export default function QuizQuestionForm() {
     // eslint-disable-next-line 
   }, [timer]);
 
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [editingId, setEditingId] = useState(null); // id of question being edited
+  const [editData, setEditData] = useState({
+    question: "",
+    options: ["", "", "", ""],
+    answer: "",
+    category: "technical",
+  });
+
+  const pageSize = 10;
+
+  useEffect(() => {
+    axios
+      .get("https://ccc-bsp-server.vercel.app/GetQuizQuestions")
+      .then((response) => {
+        const sortedQuestions = response.data.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setQuestions(sortedQuestions);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Failed to fetch questions");
+        setLoading(false);
+      });
+  }, []);
+
+  // Filtered and paged questions
+  const filteredQuestions = questions.filter((q) => {
+    const matchesSearch = q.question.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === "all" || q.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+  const totalPages = Math.ceil(filteredQuestions.length / pageSize);
+  const pagedQuestions = filteredQuestions.slice(page * pageSize, (page + 1) * pageSize);
+
+  // Start editing a question
+  const startEdit = (q) => {
+    setEditingId(q._id);
+    setEditData({
+      question: q.question,
+      options: [...q.options],
+      answer: q.answer,
+      category: q.category,
+    });
+  };
+
+  // Cancel editing
+  const cancelEdit = () => {
+    setEditingId(null);
+  };
+
+  // Handle input changes in edit form
+  const handleEditChange = (field, value, index = null) => {
+    if (field === "options" && index !== null) {
+      const newOptions = [...editData.options];
+      newOptions[index] = value;
+      setEditData({ ...editData, options: newOptions });
+    } else {
+      setEditData({ ...editData, [field]: value });
+    }
+  };
+
+  // Submit updated question
+  const submitEdit = (id) => {
+    axios
+      .put(`https://ccc-bsp-server.vercel.app/UpdateQuizQuestion/${id}`, editData)
+      .then((res) => {
+        // Update the questions array locally
+        setQuestions((prev) =>
+          prev.map((q) => (q._id === id ? res.data : q))
+        );
+        setEditingId(null);
+      })
+      .catch(() => {
+        alert("Failed to update question");
+      });
+  };
+
+  const [detailSubmission, setDetailSubmission] = React.useState(null);
+
   return (
     <div className="Quiz">
-      <h2 className="text-center mb-4">Add New Quiz Question</h2>
 
       {IsLoggedIn && (
         <div className="d-flex gap-2 mb-3">
@@ -237,16 +322,224 @@ export default function QuizQuestionForm() {
           <button className="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#submissionsModal">
             View All Quiz Submissions
           </button>
+          <button className="btn btn-sm btn-info" data-bs-toggle="collapse" data-bs-target="#questionsCollapse">
+            Show Questions
+          </button>
         </div>
       )}
 
-      {/* Modal */}
-      <div className="modal fade" id="submissionsModal" tabIndex="-1" aria-labelledby="submissionsModalLabel" aria-hidden="true">
-        <div className="modal-dialog modal-xl">
+      <div className="collapse" id="questionsCollapse">
+        <div className="card card-body">
+          {/* Search and Filter */}
+          <div className="d-flex gap-3 mb-3">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search by question..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(0);
+              }}
+            />
+            <select
+              className="btn border"
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="all">All Categories</option>
+              <option value="technical">Technical</option>
+              <option value="safety">Safety</option>
+            </select>
+          </div>
+
+          {loading && <p>Loading questions...</p>}
+          {error && <p className="text-danger">Error: {error}</p>}
+          {!loading && !error && filteredQuestions.length === 0 && <p>No questions available</p>}
+
+          {!loading && !error && filteredQuestions.length > 0 && (
+            <>
+              {pagedQuestions.map((q) => (
+                <div key={q._id} className="card mb-3 shadow-sm position-relative">
+                  {/* Category badge */}
+                  <span
+                    className="badge bg-danger position-absolute p-2"
+                    style={{ top: "10px", right: "10px", textTransform: "capitalize" }}
+                  >
+                    {q.category}
+                  </span>
+
+                  <div className="card-body">
+                    {editingId === q._id ? (
+                      <>
+                        {/* Edit form */}
+                        <div className="mb-3">
+                          <label className="form-label">Question</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={editData.question}
+                            onChange={(e) => handleEditChange("question", e.target.value)}
+                          />
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="form-label">Options</label>
+                          <div className="row">
+                            {editData.options.map((opt, i) => (
+                              <div key={i} className="col-6 mb-2">
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  value={opt}
+                                  onChange={(e) => handleEditChange("options", e.target.value, i)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="form-label">Correct Answer</label>
+                          <select
+                            className="form-select"
+                            value={editData.answer}
+                            onChange={(e) => handleEditChange("answer", e.target.value)}
+                          >
+                            <option value="">-- Select Correct Answer --</option>
+                            {editData.options.map((opt, i) => (
+                              <option key={i} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="form-label">Category</label>
+                          <select
+                            className="form-select"
+                            value={editData.category}
+                            onChange={(e) => handleEditChange("category", e.target.value)}
+                          >
+                            <option value="technical">Technical</option>
+                            <option value="safety">Safety</option>
+                          </select>
+                        </div>
+
+                        <button
+                          className="btn btn-success me-2"
+                          onClick={() => submitEdit(q._id)}
+                        >
+                          Save
+                        </button>
+                        <button className="btn btn-secondary" onClick={cancelEdit}>
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {/* Display question */}
+                        <h5 className="card-title">Question:</h5>
+                        <p className="card-text">{q.question}</p>
+
+                        <h6>Options:</h6>
+                        <div className="row">
+                          {q.options.map((opt, i) => (
+                            <div key={i} className="col-6 mb-2">
+                              <div className="border rounded p-2">{opt}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="alert alert-success mb-3" role="alert">
+                          <strong>Correct Answer: </strong> {q.answer}
+                        </div>
+
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => startEdit(q)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-danger ms-2"
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to delete this question?")) {
+                              axios
+                                .delete(`https://ccc-bsp-server.vercel.app/DeleteQuizQuestion/${q._id}`)
+                                .then(() => {
+                                  setQuestions((prev) => prev.filter((item) => item._id !== q._id));
+                                })
+                                .catch(() => {
+                                  alert("Failed to delete question");
+                                });
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              <nav>
+                <ul className="pagination justify-content-center">
+                  <li className={`page-item ${page === 0 ? "disabled" : ""}`}>
+                    <button
+                      className="page-link"
+                      onClick={() => setPage(page - 1)}
+                      disabled={page === 0}
+                    >
+                      Previous
+                    </button>
+                  </li>
+                  <li className="page-item disabled">
+                    <span className="page-link">
+                      Page {page + 1} of {totalPages}
+                    </span>
+                  </li>
+                  <li className={`page-item ${page >= totalPages - 1 ? "disabled" : ""}`}>
+                    <button
+                      className="page-link"
+                      onClick={() => setPage(page + 1)}
+                      disabled={page >= totalPages - 1}
+                    >
+                      Next
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* All Submissions Modal */}
+      <div
+        className="modal fade"
+        id="submissionsModal"
+        tabIndex="-1"
+        aria-labelledby="submissionsModalLabel"
+        aria-hidden="true"
+      >
+        <div className="modal-dialog modal-xl modal-dialog-scrollable">
           <div className="modal-content">
             <div className="modal-header">
-              <h5 className="modal-title" id="submissionsModalLabel">All Quiz Submissions</h5>
-              <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+              <h5 className="modal-title" id="submissionsModalLabel">
+                All Quiz Submissions
+              </h5>
+              <button
+                type="button"
+                className="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              />
             </div>
             <div className="modal-body">
               {/* Search, Sort & Filter Controls */}
@@ -312,6 +605,7 @@ export default function QuizQuestionForm() {
                       <th>Correct Answers</th>
                       <th>Start Time</th>
                       <th>End Time</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -324,11 +618,23 @@ export default function QuizQuestionForm() {
                         <td>{s.correctAnswers}</td>
                         <td>{new Date(s.startTime).toLocaleString()}</td>
                         <td>{new Date(s.endTime).toLocaleString()}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-primary"
+                            data-bs-toggle="modal"
+                            data-bs-target="#submissionDetailsModal"
+                            onClick={() => setDetailSubmission(s)}
+                          >
+                            View Details
+                          </button>
+                        </td>
                       </tr>
                     ))}
                     {sorted.length === 0 && (
                       <tr>
-                        <td colSpan="7" className="text-center">No submissions found</td>
+                        <td colSpan="8" className="text-center">
+                          No submissions found
+                        </td>
                       </tr>
                     )}
                   </tbody>
@@ -336,12 +642,94 @@ export default function QuizQuestionForm() {
               </div>
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Submission Details Modal */}
+      <div
+        className="modal fade"
+        id="submissionDetailsModal"
+        tabIndex="-1"
+        aria-labelledby="submissionDetailsModalLabel"
+        aria-hidden="true"
+      >
+        <div className="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+          <div className="modal-content shadow-lg border-0 rounded-4">
+            <div className="modal-header bg-primary text-white rounded-top">
+              <h5 className="modal-title" id="submissionDetailsModalLabel">
+                Submission Details - {detailSubmission?.staffName || ""}
+              </h5>
+              <button
+                type="button"
+                className="btn-close btn-close-white"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+                onClick={() => setDetailSubmission(null)}
+              />
+            </div>
+            <div className="modal-body">
+              {!detailSubmission ? (
+                <p className="text-center fs-5 my-5">Loading...</p>
+              ) : (
+                <div className="row g-3">
+                  {detailSubmission.responses.map((resp, i) => (
+                    <div key={i} className="col-12">
+                      <div className="card shadow-sm border-0">
+                        <div className="card-body">
+                          <h6 className="card-title">
+                            Q{i + 1}: {resp.question}
+                          </h6>
+                          <p className="mb-1">
+                            <strong>Your Answer: </strong>
+                            <span
+                              className={
+                                resp.isCorrect ? "badge bg-success" : "badge bg-danger"
+                              }
+                            >
+                              {resp.selected}
+                            </span>
+                          </p>
+                          <p className="mb-0">
+                            <strong>Correct Answer: </strong>
+                            <span className="text-muted">{resp.correctAnswer}</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer border-0 pt-3">
+              <button
+                className="btn btn-outline-primary"
+                data-bs-target="#submissionsModal"
+                data-bs-toggle="modal"
+                onClick={() => setDetailSubmission(null)}
+              >
+                ← Back to Submissions
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                data-bs-dismiss="modal"
+                onClick={() => setDetailSubmission(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="collapse" id="addQuestionCollapse">
         <div className="card card-body">

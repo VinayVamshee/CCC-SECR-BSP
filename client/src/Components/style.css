@@ -669,6 +669,6 @@
   background-size: cover;
   background-repeat: no-repeat;
   animation: FadeIn 1s ease-in;
-  max-height: 80vh;
+  max-height: 89vh;
   overflow: auto;
 }
