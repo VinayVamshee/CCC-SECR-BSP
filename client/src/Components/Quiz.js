@@ -17,6 +17,46 @@ export default function QuizQuestionForm() {
   const [timer, setTimer] = useState(0);
   const [answers, setAnswers] = useState({});
 
+  const [Staffusername, setStaffUsername] = useState('');
+  const [Staffpassword, setStaffPassword] = useState('');
+  const [StaffEmail, setStaffEmail] = useState('');
+  const [StaffPhone, setStaffPhone] = useState('');
+
+  const AddStaffUser = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post('https://ccc-bsp-server.vercel.app/StaffRegister', { Staffusername, Staffpassword, StaffEmail, StaffPhone })
+        .then(result => {
+          alert('Staff Registration Successful');
+          document.getElementById('closeAddStaffModal').click();
+
+        })
+        .catch(error => console.log(error))
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  const CheckStaff = async (e) => {
+    e.preventDefault();
+    axios.post('https://ccc-bsp-server.vercel.app/StaffLogin', { Staffusername, Staffpassword })
+      .then(result => {
+        if (result.data.token) {
+          localStorage.setItem('Stafftoken', result.data.token)
+          alert('Login Successful')
+          window.location.reload();
+        }
+        else if (result.data === 'Please Check the Password') {
+          alert('Incorrect Password')
+        }
+        else {
+          alert('Error')
+        }
+      })
+      .catch(error => console.log(error))
+  }
+
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     setIsLoggedIn(!!token);
@@ -309,15 +349,115 @@ export default function QuizQuestionForm() {
       });
   };
 
+  const StaffLogout = () => {
+    const AskUser = window.confirm("Are you sure?")
+    if (AskUser) {
+      localStorage.removeItem('Stafftoken');
+      window.location.reload();
+    }
+  }
+
   const [detailSubmission, setDetailSubmission] = React.useState(null);
 
   if (!IsLoggedIn && !IsStaffLoggedIn) {
-  return (
-    <div className="alert alert-warning" style={{ textAlign: 'center', marginTop: '20px' }}>
-      Please login to continue for a quiz.
-    </div>
-  );
-}
+    return (
+      <div>
+
+        {/* AddStaff */}
+        <div className="modal fade" id="AddStaffUserModal" tabIndex="-1" aria-labelledby="AddStaffUserModalLabel" aria-hidden="true">
+          <div className="modal-dialog">
+            <div className="modal-content LoginForm">
+              <form onSubmit={AddStaffUser}>
+                <div className="modal-header">
+                  <h1 className="modal-title fs-5" id="AddStaffUserModalLabel">Add New Staff</h1>
+                  <button type="button" className="btn-close" data-bs-dismiss="modal" id="closeAddStaffModal" aria-label="Close"></button>
+                </div>
+                <div className="modal-body d-flex flex-column gap-2">
+                  <input
+                    value={StaffEmail}
+                    onChange={(event) => setStaffEmail(event.target.value)}
+                    placeholder='Email Address'
+                    type='email'
+                    className="form-control"
+                    required
+                  />
+                  <input
+                    value={Staffusername}
+                    onChange={(event) => setStaffUsername(event.target.value)}
+                    placeholder='Username'
+                    type='text'
+                    className="form-control"
+                    required
+                  />
+                  <input
+                    value={Staffpassword}
+                    onChange={(event) => setStaffPassword(event.target.value)}
+                    placeholder='Password'
+                    type='password'
+                    className="form-control"
+                    required
+                  />
+                  <input
+                    value={StaffPhone}
+                    onChange={(event) => setStaffPhone(event.target.value)}
+                    placeholder='Phone Number'
+                    type='tel'
+                    className="form-control"
+                    required
+                  />
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" className="btn btn-primary" >Add New Staff</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        {
+          IsStaffLoggedIn ?
+            <button className='btn btn-sm btn-danger' onClick={StaffLogout}>Staff Logout</button>
+            :
+            <div className='d-flex gap-2 m-2  justify-content-end'>
+              <button type="button" className="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#AddStaffUserModal">
+                New Registration
+              </button>
+              <button type="button" className="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#StaffLoginModal">
+                User Login
+              </button>
+            </div>
+
+        }
+
+        {/* CheckStaff */}
+        <div className="modal fade" id="StaffLoginModal" tabIndex="-1" aria-labelledby="StaffLoginModalLabel" aria-hidden="true">
+          <div className="modal-dialog">
+            <div className="modal-content LoginForm">
+              <form onSubmit={CheckStaff}>
+                <div className="modal-header">
+                  <h1 className="modal-title fs-5" id="StaffLoginModalLabel">Staff Login</h1>
+                  <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div className="modal-body">
+                  <input value={Staffusername} onChange={(event) => setStaffUsername(event.target.value)} placeholder='Username' type='text' />
+                  <input value={Staffpassword} onChange={(event) => setStaffPassword(event.target.value)} placeholder='Password' type='password' />
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                  <button type="submit" className="btn btn-primary">Login</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div className="alert alert-warning" style={{ textAlign: 'center', marginTop: '20px' }}>
+          Please login to continue for a quiz.
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="Quiz">
 
@@ -867,13 +1007,13 @@ export default function QuizQuestionForm() {
                   <span>Total Questions</span> <strong>20</strong>
                 </li>
                 <li className="list-group-item d-flex justify-content-between">
-                  <span>Total Time</span> <strong>20 minutes</strong>
+                  <span>Total Time</span> <strong>15 minutes</strong>
                 </li>
                 <li className="list-group-item d-flex justify-content-between">
                   <span>Navigation</span> <strong>Allowed</strong>
                 </li>
                 <li className="list-group-item d-flex justify-content-between">
-                  <span>Auto-submit</span> <strong>After 20 minutes</strong>
+                  <span>Auto-submit</span> <strong>After 15 minutes</strong>
                 </li>
                 <li className="list-group-item text-danger fw-semibold text-center">
                   Cheating is <u>strictly prohibited</u>
@@ -909,13 +1049,13 @@ export default function QuizQuestionForm() {
                   <span>Total Questions</span> <strong>20</strong>
                 </li>
                 <li className="list-group-item d-flex justify-content-between">
-                  <span>Total Time</span> <strong>20 minutes</strong>
+                  <span>Total Time</span> <strong>15 minutes</strong>
                 </li>
                 <li className="list-group-item d-flex justify-content-between">
                   <span>Navigation</span> <strong>Allowed</strong>
                 </li>
                 <li className="list-group-item d-flex justify-content-between">
-                  <span>Auto-submit</span> <strong>After 20 minutes</strong>
+                  <span>Auto-submit</span> <strong>After 15 minutes</strong>
                 </li>
                 <li className="list-group-item text-danger fw-semibold text-center">
                   Cheating is <u>strictly prohibited</u>

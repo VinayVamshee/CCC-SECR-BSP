@@ -424,7 +424,7 @@ app.post("/StartQuiz", async (req, res) => {
     }));
 
     const startTime = Date.now();                // current time
-    const visibleDuration = 20 * 60 * 1000;      // 20 mins for frontend
+    const visibleDuration = 15 * 60 * 1000;      // 20 mins for frontend
     const bufferDuration = 2 * 60 * 1000;        // 2 mins buffer
     const jwtDuration = visibleDuration + bufferDuration; // 22 mins total
 
