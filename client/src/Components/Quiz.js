@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { jwtDecode } from "jwt-decode";
+import safety_train from './PNGs/safety_train.jpeg'
+import technical_train from './PNGs/technical-train.jpeg'
 
 export default function QuizQuestionForm() {
   const [IsLoggedIn, setIsLoggedIn] = useState(false);
@@ -133,6 +135,7 @@ export default function QuizQuestionForm() {
   const startQuiz = async (category) => {
     const staffToken = localStorage.getItem('Stafftoken');
     const staffId = jwtDecode(staffToken).id;
+    setQuizType(category);
 
     try {
       setIsLoading(true);
@@ -358,6 +361,7 @@ export default function QuizQuestionForm() {
   }
 
   const [detailSubmission, setDetailSubmission] = React.useState(null);
+  const [quizType, setQuizType] = useState(null); // 'technical' or 'safety'
 
   if (!IsLoggedIn && !IsStaffLoggedIn) {
     return (
@@ -1078,6 +1082,16 @@ export default function QuizQuestionForm() {
 
       {quizQuestions.length > 0 && (
         <div className="quiz-panel mt-4">
+          <h4 className="text-center fw-bold text-uppercase mb-3">
+            {quizType === 'technical' && 'TECHNICAL QUIZ (ELECTRIC LOCO) BSP DIV - SECR'}
+            {quizType === 'safety' && 'SAFE WORKING RULE QUIZ CONTEST BSP DIV - SECR'}
+          </h4>
+          <div className="train-track my-2">
+            <div className="train">
+              <img src={quizType === 'safety' ? safety_train : technical_train} alt="Train" />
+            </div>
+          </div>
+
           <div className="d-flex justify-content-center mb-4">
             <div className="badge bg-danger fs-6 px-4 py-2 rounded-pill shadow">
               ⏳ Time Left: {Math.floor(timer / 60)}:{('0' + (timer % 60)).slice(-2)} mins

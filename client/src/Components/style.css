@@ -673,3 +673,33 @@
   max-height: 89vh;
   overflow: auto;
 }
+
+.train-track {
+  overflow: hidden;
+  height: 50px;
+  position: relative;
+  width: 100%;
+  background-color: white;
+}
+
+.train {
+  position: absolute;
+  white-space: nowrap;
+  animation: trainMove 10s linear infinite;
+  font-size: 2rem; /* or image size */
+}
+
+.train img {
+  object-fit: contain;
+  object-position: top;
+  height: 50px;
+}
+
+@keyframes trainMove {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
