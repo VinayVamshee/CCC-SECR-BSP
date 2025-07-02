@@ -408,7 +408,7 @@ function shuffle(array) {
 }
 
 app.post("/StartQuiz", async (req, res) => {
-  const { category, staffId } = req.body;
+  const { category, name, email } = req.body;
 
   try {
     let questions = await quizQuestionSchema.find({ category });
@@ -423,25 +423,14 @@ app.post("/StartQuiz", async (req, res) => {
       options: shuffle([...q.options])
     }));
 
-    const startTime = Date.now();                // current time
-    const visibleDuration = 15 * 60 * 1000;      // 20 mins for frontend
-    const bufferDuration = 2 * 60 * 1000;        // 2 mins buffer
-    const jwtDuration = visibleDuration + bufferDuration; // 22 mins total
-
-    const quizToken = jwt.sign({
-      staffId,
-      category,
-      questions,
-      startTime
-    }, 'quiz_secret_key', { expiresIn: Math.floor(jwtDuration / 1000) }); // in seconds
-
-    const endTime = startTime + visibleDuration; // only send 20 mins endTime
+    const startTime = Date.now();
+    const visibleDuration = 15 * 60 * 1000;
+    const endTime = startTime + visibleDuration;
 
     return res.json({
-      token: quizToken,
       questions,
       startTime,
-      endTime // frontend will use this for countdown
+      endTime
     });
 
   } catch (error) {
@@ -451,19 +440,14 @@ app.post("/StartQuiz", async (req, res) => {
 });
 
 app.post("/SubmitQuiz", async (req, res) => {
-  const { staffId, token, responses } = req.body;
+  const { name, email, category, startTime, responses } = req.body;
 
   try {
-    const decoded = jwt.verify(token, "quiz_secret_key");
-    const { startTime, category } = decoded;
-
-    // Check if already submitted (optional)
-    const alreadySubmitted = await quizSubmissionSchema.findOne({ staffId, category, startTime });
+    const alreadySubmitted = await quizSubmissionSchema.findOne({ name, email, category, startTime });
     if (alreadySubmitted) {
       return res.status(400).json({ message: "Quiz already submitted" });
     }
 
-    // Calculate score
     let correctCount = 0;
     const formattedResponses = [];
 
@@ -484,7 +468,8 @@ app.post("/SubmitQuiz", async (req, res) => {
     }
 
     const submission = new quizSubmissionSchema({
-      staffId,
+      name,
+      email,
       category,
       startTime,
       endTime: Date.now(),
@@ -499,7 +484,7 @@ app.post("/SubmitQuiz", async (req, res) => {
 
   } catch (err) {
     console.error("SubmitQuiz error:", err);
-    return res.status(401).json({ message: "Invalid or expired quiz token" });
+    return res.status(500).json({ message: "Submission failed" });
   }
 });
 
@@ -507,39 +492,25 @@ app.get("/GetAllQuizSubmissions", async (req, res) => {
   try {
     const submissions = await quizSubmissionSchema.find({});
 
-    // For each submission, find corresponding staff user info
-    const results = await Promise.all(submissions.map(async (sub) => {
-      const staff = await StaffUserSchema.findById(sub.staffId);
-      return {
-        _id: sub._id,
-        staffId: sub.staffId,
-        staffName: staff ? staff.Staffusername : "Unknown",
-        phone: staff ? staff.StaffPhone : "N/A",
-        category: sub.category,
-        startTime: sub.startTime,
-        endTime: sub.endTime,
-        totalQuestions: sub.totalQuestions,
-        correctAnswers: sub.correctAnswers,
-        responses: sub.responses
-      };
+    // No need to join with staff table anymore
+    const results = submissions.map(sub => ({
+      _id: sub._id,
+      name: sub.name,
+      email: sub.email,
+      category: sub.category,
+      startTime: sub.startTime,
+      endTime: sub.endTime,
+      totalQuestions: sub.totalQuestions,
+      correctAnswers: sub.correctAnswers,
+      responses: sub.responses
     }));
 
     res.json(results);
-
   } catch (err) {
     console.error("GetAllQuizSubmissions error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
-
-
-
-
-
-
-
-
-
 
 
 

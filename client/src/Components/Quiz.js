@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { jwtDecode } from "jwt-decode";
 import safety_train from './PNGs/safety_train.jpeg'
 import technical_train from './PNGs/technical-train.jpeg'
 
 export default function QuizQuestionForm() {
   const [IsLoggedIn, setIsLoggedIn] = useState(false);
-  const [IsStaffLoggedIn, setIsStaffLoggedIn] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [category, setCategory] = useState('');
@@ -19,51 +18,9 @@ export default function QuizQuestionForm() {
   const [timer, setTimer] = useState(0);
   const [answers, setAnswers] = useState({});
 
-  const [Staffusername, setStaffUsername] = useState('');
-  const [Staffpassword, setStaffPassword] = useState('');
-  const [StaffEmail, setStaffEmail] = useState('');
-  const [StaffPhone, setStaffPhone] = useState('');
-
-  const AddStaffUser = async (e) => {
-    e.preventDefault();
-    try {
-      await axios.post('https://ccc-bsp-server.vercel.app/StaffRegister', { Staffusername, Staffpassword, StaffEmail, StaffPhone })
-        .then(result => {
-          alert('Staff Registration Successful');
-          document.getElementById('closeAddStaffModal').click();
-
-        })
-        .catch(error => console.log(error))
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
-  const CheckStaff = async (e) => {
-    e.preventDefault();
-    axios.post('https://ccc-bsp-server.vercel.app/StaffLogin', { Staffusername, Staffpassword })
-      .then(result => {
-        if (result.data.token) {
-          localStorage.setItem('Stafftoken', result.data.token)
-          alert('Login Successful')
-          window.location.reload();
-        }
-        else if (result.data === 'Please Check the Password') {
-          alert('Incorrect Password')
-        }
-        else {
-          alert('Error')
-        }
-      })
-      .catch(error => console.log(error))
-  }
-
-
   useEffect(() => {
     const token = localStorage.getItem('token');
     setIsLoggedIn(!!token);
-    const staffToken = localStorage.getItem('Stafftoken');
-    setIsStaffLoggedIn(!!staffToken);
   }, []);
 
   useEffect(() => {
@@ -132,21 +89,23 @@ export default function QuizQuestionForm() {
     }
   };
 
-  const startQuiz = async (category) => {
-    const staffToken = localStorage.getItem('Stafftoken');
-    const staffId = jwtDecode(staffToken).id;
+  const startQuiz = async (category, name, email) => {
     setQuizType(category);
 
     try {
       setIsLoading(true);
-      const res = await axios.post("https://ccc-bsp-server.vercel.app/StartQuiz", { category, staffId });
+      const res = await axios.post("https://ccc-bsp-server.vercel.app/StartQuiz", {
+        category,
+        name,
+        email
+      });
 
-      const { token, questions, endTime } = res.data;
+      const { questions, endTime, startTime } = res.data;
 
-      localStorage.setItem('QuizToken', token);
-      localStorage.setItem('QuizStartTime', Date.now());
+      localStorage.setItem('QuizStartTime', startTime);
       localStorage.setItem('QuizEndTime', endTime);
       localStorage.setItem('QuizQuestions', JSON.stringify(questions));
+      localStorage.setItem('QuizUser', JSON.stringify({ name, email }));
 
       setQuizQuestions(questions);
       setTimer(Math.floor((endTime - Date.now()) / 1000));
@@ -172,9 +131,16 @@ export default function QuizQuestionForm() {
     if (submitLoading) return;
     setSubmitLoading(true);
 
-    const staffToken = localStorage.getItem('Stafftoken');
-    const staffId = jwtDecode(staffToken).id;
-    const token = localStorage.getItem('QuizToken');
+    // ⏬ Get name, email, and startTime from localStorage
+    const quizUser = JSON.parse(localStorage.getItem('QuizUser') || '{}');
+    const { name, email } = quizUser;
+    const startTime = parseInt(localStorage.getItem('QuizStartTime'));
+
+    if (!name || !email || !startTime) {
+      alert("Missing user info. Please restart the quiz.");
+      setSubmitLoading(false);
+      return;
+    }
 
     const submittedData = quizQuestions.map(q => ({
       questionId: q._id,
@@ -184,18 +150,19 @@ export default function QuizQuestionForm() {
 
     try {
       const res = await axios.post("https://ccc-bsp-server.vercel.app/SubmitQuiz", {
-        staffId,
-        token,
+        name,
+        email,
+        category: quizType,
+        startTime,
         responses: submittedData,
       });
 
-      // ✅ Use correct score from backend
       const correctCount = res.data.correctCount || 0;
 
       setScore(correctCount);
       setTotal(quizQuestions.length);
 
-      // ✅ Show Bootstrap modal manually
+      // ✅ Show Thank You modal
       document.getElementById('openThankYouModalBtn').click();
 
       // ✅ Clear states
@@ -204,12 +171,14 @@ export default function QuizQuestionForm() {
       setTimer(0);
       setIsSubmitted(true);
 
-      // ✅ Remove from localStorage
-      localStorage.removeItem('QuizToken');
+      // ✅ Clean up localStorage
+      localStorage.removeItem('QuizUser');
       localStorage.removeItem('QuizStartTime');
       localStorage.removeItem('QuizEndTime');
       localStorage.removeItem('QuizQuestions');
+
       fetchQuizSubmissions();
+
     } catch (err) {
       console.error("Error submitting quiz:", err);
       alert("Failed to submit quiz");
@@ -243,9 +212,13 @@ export default function QuizQuestionForm() {
   const handleSearch = (e) => {
     const value = e.target.value.toLowerCase();
     setSearch(value);
-    const filtered = submissions.filter(s =>
-      s.staffName.toLowerCase().includes(value)
-    );
+
+    const filtered = submissions.filter((s) => {
+      const name = s.name || "";
+      const email = s.email || "";
+      return name.toLowerCase().includes(value) || email.toLowerCase().includes(value);
+    });
+
     setSorted(filtered);
   };
 
@@ -352,119 +325,15 @@ export default function QuizQuestionForm() {
       });
   };
 
-  const StaffLogout = () => {
-    const AskUser = window.confirm("Are you sure?")
-    if (AskUser) {
-      localStorage.removeItem('Stafftoken');
-      window.location.reload();
-    }
-  }
-
   const [detailSubmission, setDetailSubmission] = React.useState(null);
-  const [quizType, setQuizType] = useState(null); // 'technical' or 'safety'
+  const [quizType, setQuizType] = useState(''); // This already exists in your code
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
 
-  if (!IsLoggedIn && !IsStaffLoggedIn) {
-    return (
-      <div>
 
-        {/* AddStaff */}
-        <div className="modal fade" id="AddStaffUserModal" tabIndex="-1" aria-labelledby="AddStaffUserModalLabel" aria-hidden="true">
-          <div className="modal-dialog">
-            <div className="modal-content LoginForm">
-              <form onSubmit={AddStaffUser}>
-                <div className="modal-header">
-                  <h1 className="modal-title fs-5" id="AddStaffUserModalLabel">Add New Staff</h1>
-                  <button type="button" className="btn-close" data-bs-dismiss="modal" id="closeAddStaffModal" aria-label="Close"></button>
-                </div>
-                <div className="modal-body d-flex flex-column gap-2">
-                  <input
-                    value={StaffEmail}
-                    onChange={(event) => setStaffEmail(event.target.value)}
-                    placeholder='Email Address'
-                    type='email'
-                    className="form-control"
-                    required
-                  />
-                  <input
-                    value={Staffusername}
-                    onChange={(event) => setStaffUsername(event.target.value)}
-                    placeholder='Username'
-                    type='text'
-                    className="form-control"
-                    required
-                  />
-                  <input
-                    value={Staffpassword}
-                    onChange={(event) => setStaffPassword(event.target.value)}
-                    placeholder='Password'
-                    type='password'
-                    className="form-control"
-                    required
-                  />
-                  <input
-                    value={StaffPhone}
-                    onChange={(event) => setStaffPhone(event.target.value)}
-                    placeholder='Phone Number'
-                    type='tel'
-                    className="form-control"
-                    required
-                  />
-                </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                  <button type="submit" className="btn btn-primary" >Add New Staff</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
 
-        {
-          IsStaffLoggedIn ?
-            <button className='btn btn-sm btn-danger' onClick={StaffLogout}>Staff Logout</button>
-            :
-            <div className='d-flex gap-2 m-2  justify-content-end'>
-              <button type="button" className="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#AddStaffUserModal">
-                New Registration
-              </button>
-              <button type="button" className="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#StaffLoginModal">
-                User Login
-              </button>
-            </div>
-
-        }
-
-        {/* CheckStaff */}
-        <div className="modal fade" id="StaffLoginModal" tabIndex="-1" aria-labelledby="StaffLoginModalLabel" aria-hidden="true">
-          <div className="modal-dialog">
-            <div className="modal-content LoginForm">
-              <form onSubmit={CheckStaff}>
-                <div className="modal-header">
-                  <h1 className="modal-title fs-5" id="StaffLoginModalLabel">Staff Login</h1>
-                  <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div className="modal-body">
-                  <input value={Staffusername} onChange={(event) => setStaffUsername(event.target.value)} placeholder='Username' type='text' />
-                  <input value={Staffpassword} onChange={(event) => setStaffPassword(event.target.value)} placeholder='Password' type='password' />
-                </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                  <button type="submit" className="btn btn-primary">Login</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        <div className="alert alert-warning" style={{ textAlign: 'center', marginTop: '20px' }}>
-          Please login to continue for a quiz.
-        </div>
-      </div>
-    );
-  }
   return (
     <div className="Quiz">
-
       {IsLoggedIn && (
         <div className="d-flex gap-2 mb-3">
           <button className="btn btn-sm btn-warning" data-bs-toggle="collapse" data-bs-target="#addQuestionCollapse">
@@ -679,7 +548,7 @@ export default function QuizQuestionForm() {
         aria-labelledby="submissionsModalLabel"
         aria-hidden="true"
       >
-        <div className="modal-dialog modal-xl modal-dialog-scrollable">
+        <div className="modal-dialog modal-fullscreen modal-dialog-scrollable">
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title" id="submissionsModalLabel">
@@ -698,19 +567,23 @@ export default function QuizQuestionForm() {
                 <input
                   type="text"
                   className="form-control w-auto flex-grow-1"
-                  placeholder="Search by Staff Name"
+                  placeholder="Search by Name or Email"
                   value={search}
                   onChange={handleSearch}
                 />
 
                 <select
                   className="form-select w-auto"
-                  onChange={e => {
+                  onChange={(e) => {
                     const val = e.target.value;
                     if (val === "highest") {
-                      setSorted(prev => [...prev].sort((a, b) => b.correctAnswers - a.correctAnswers));
+                      setSorted((prev) =>
+                        [...prev].sort((a, b) => b.correctAnswers - a.correctAnswers)
+                      );
                     } else {
-                      setSorted(prev => [...prev].sort((a, b) => a.correctAnswers - b.correctAnswers));
+                      setSorted((prev) =>
+                        [...prev].sort((a, b) => a.correctAnswers - b.correctAnswers)
+                      );
                     }
                   }}
                   defaultValue="highest"
@@ -721,20 +594,17 @@ export default function QuizQuestionForm() {
 
                 <select
                   className="form-select w-auto"
-                  onChange={e => {
+                  onChange={(e) => {
                     const val = e.target.value;
                     if (val === "both") {
-                      setSorted(() => {
-                        const filtered = submissions.filter(s => true);
-                        return filtered;
-                      });
+                      setSorted(submissions); // reset filter
                     } else {
-                      setSorted(() => {
-                        const filtered = submissions.filter(s => s.category.toLowerCase() === val);
-                        return filtered;
-                      });
+                      const filtered = submissions.filter(
+                        (s) => s.category.toLowerCase() === val
+                      );
+                      setSorted(filtered);
                     }
-                    setSearch(""); // clear search when filter changes
+                    setSearch(""); // Clear search
                   }}
                   defaultValue="both"
                 >
@@ -746,11 +616,11 @@ export default function QuizQuestionForm() {
 
               {/* Table */}
               <div className="table-responsive">
-                <table className="table table-bordered table-hover">
+                <table className="table table-bordered table-hover" style={{ whiteSpace: 'nowrap' }}>
                   <thead className="table-dark">
                     <tr>
                       <th>Staff Name</th>
-                      <th>Phone No</th>
+                      <th>Email Address</th>
                       <th>Category</th>
                       <th>Total Questions</th>
                       <th>Correct Answers</th>
@@ -762,8 +632,8 @@ export default function QuizQuestionForm() {
                   <tbody>
                     {sorted.map((s, idx) => (
                       <tr key={idx}>
-                        <td>{s.staffName || "N/A"}</td>
-                        <td>{s.phone || "N/A"}</td>
+                        <td>{s.name}</td>
+                        <td>{s.email}</td>
                         <td>{s.category}</td>
                         <td>{s.totalQuestions}</td>
                         <td>{s.correctAnswers}</td>
@@ -804,6 +674,7 @@ export default function QuizQuestionForm() {
           </div>
         </div>
       </div>
+
 
       {/* Submission Details Modal */}
       <div
@@ -976,24 +847,24 @@ export default function QuizQuestionForm() {
         </div>
       </div>
 
-      {IsStaffLoggedIn && (
-        <div className="text-center mt-4">
-          <button
-            className="btn btn-primary me-3"
-            data-bs-toggle="modal"
-            data-bs-target="#technicalModal"
-          >
-            Start Technical Quiz
-          </button>
-          <button
-            className="btn btn-danger"
-            data-bs-toggle="modal"
-            data-bs-target="#safetyModal"
-          >
-            Start Safety Quiz
-          </button>
-        </div>
-      )}
+
+      <div className="text-center mt-4">
+        <button
+          className="btn btn-primary me-3"
+          data-bs-toggle="modal"
+          data-bs-target="#technicalModal"
+        >
+          Start Technical Quiz
+        </button>
+        <button
+          className="btn btn-danger"
+          data-bs-toggle="modal"
+          data-bs-target="#safetyModal"
+        >
+          Start Safety Quiz
+        </button>
+      </div>
+
 
       {/* Technical Quiz Modal */}
       <div className="modal fade" id="technicalModal" tabIndex="-1" aria-labelledby="technicalModalLabel" aria-hidden="true">
@@ -1027,7 +898,7 @@ export default function QuizQuestionForm() {
             <div className="modal-footer justify-content-center">
               <button
                 className="btn btn-primary px-4 py-2 fw-bold"
-                onClick={() => startQuiz('technical')}
+                onClick={() => setQuizType('technical')}
                 data-bs-dismiss="modal"
               >
                 Start Test
@@ -1069,11 +940,95 @@ export default function QuizQuestionForm() {
             <div className="modal-footer justify-content-center">
               <button
                 className="btn btn-success px-4 py-2 fw-bold"
-                onClick={() => startQuiz('safety')}
+                onClick={() => setQuizType('safety')}
                 data-bs-dismiss="modal"
+                data-bs-toggle="modal"
+                data-bs-target="#userInfoModal"
               >
                 Start Test
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        className="modal fade"
+        id="userInfoModal"
+        tabIndex="-1"
+        aria-labelledby="userInfoModalLabel"
+        aria-hidden="true"
+      >
+        <div className="modal-dialog modal-dialog-centered modal-md">
+          <div className="modal-content shadow-lg border-0 rounded-4">
+            <div className="modal-header bg-dark text-white rounded-top">
+              <h5 className="modal-title" id="userInfoModalLabel">
+                <i className="bi bi-person-fill me-2"></i> Enter Your Details
+              </h5>
+              <button
+                type="button"
+                className="btn-close btn-close-white"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              />
+            </div>
+
+            <div className="modal-body">
+              <form
+                className="needs-validation"
+                noValidate
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const form = e.target;
+                  form.classList.add("was-validated");
+
+                  const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+                  const nameVal = name.trim();
+                  const emailVal = email.trim();
+
+                  if (!nameVal || !emailVal || !gmailRegex.test(emailVal)) return;
+
+                  localStorage.setItem(
+                    "QuizUser",
+                    JSON.stringify({ name: nameVal, email: emailVal })
+                  );
+
+                  startQuiz(quizType, nameVal, emailVal);
+                }}
+              >
+                <div className="mb-3">
+                  <label className="form-label">Full Name</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                  <div className="invalid-feedback">Name is required.</div>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Email Address</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    required
+                    pattern="^[a-zA-Z0-9._%+-]+@gmail\.com$"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <div className="invalid-feedback">
+                    Please enter a valid <strong>@gmail.com</strong> address.
+                  </div>
+                </div>
+
+                <div className="modal-footer justify-content-center">
+                  <button type="submit" className="btn btn-dark px-4 fw-bold">
+                    Start Quiz
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
@@ -1176,7 +1131,6 @@ export default function QuizQuestionForm() {
           </div>
         </div>
       </div>
-
 
 
     </div>

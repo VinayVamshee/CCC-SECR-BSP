@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 
 const submissionSchema = new mongoose.Schema({
-  staffId: String,
+  name: String,
+  email: String,
   category: String,
   startTime: Number,
   endTime: Number,
